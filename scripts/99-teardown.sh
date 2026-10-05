@@ -8,7 +8,9 @@ require_token
 adp_rpc redpanda.api.adp.v1alpha1.BudgetService/DeleteBudget "$(jq -nc --arg n "$BUDGET_NAME" '{name:$n}')" >/dev/null 2>&1 || true
 ok "budget $BUDGET_NAME"
 rpai agent delete "$AGENT_NAME" >/dev/null 2>&1 || true; ok "agent $AGENT_NAME"
-rpai policy delete "policies/$POLICY_NAME" >/dev/null 2>&1 || rpai policy delete "$POLICY_NAME" >/dev/null 2>&1 || true; ok "policy $POLICY_NAME"
+for p in "$POLICY_NAME" desk-assistant-mcp desk-assistant-llm; do
+  rpai policy delete "policies/$p" >/dev/null 2>&1 || true; ok "policy $p"
+done
 for m in "$MCP_BLOTTER" "$MCP_PRICING" "$MCP_REFDATA" "$MCP_ROLLUP"; do
   rpai mcp delete "$m" >/dev/null 2>&1 || true; ok "mcp $m"
 done

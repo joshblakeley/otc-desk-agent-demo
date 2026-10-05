@@ -56,7 +56,7 @@ else
   echo "$SHAPED" | jq -e '(.records | length) == 1'                        >/dev/null || fails="$fails row-filter"
   echo "$SHAPED" | jq -e '.records[0].desk == "RATES"'                     >/dev/null || fails="$fails desk"
   echo "$SHAPED" | jq -e '.records[0].client_trader_email == "[redacted]"' >/dev/null || fails="$fails redact"
-  echo "$SHAPED" | jq -e '.records[0].counterparty_lei | endswith("R001") and startswith("*")' >/dev/null || fails="$fails lei-mask"
+  echo "$SHAPED" | jq -e '.records[0].counterparty_lei | endswith("E001") and startswith("*")' >/dev/null || fails="$fails lei-mask"
   [ -z "$fails" ] || die "$MCP_BLOTTER: the policy did not behave as configured —$fails"
   ok "$MCP_BLOTTER: row filter, redact and partial mask confirmed"
 fi

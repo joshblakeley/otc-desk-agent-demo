@@ -43,6 +43,7 @@ managed:
         - '(?i)\b(DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE)\b'
         - '(?i)\b(INSERT|UPDATE|DELETE|MERGE|COPY)\b'
         - '(?i)\bSET\s+(SESSION|ROLE|default_transaction)'
+        - '(?i)\bset_config\b'
         - '(?i)\bpg_(read|ls|stat_file|sleep)'
 
 # What the Rates broker may see. Policies target one named person: group

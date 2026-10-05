@@ -19,3 +19,5 @@ Write the query from this schema on the first attempt. No `SELECT *`, no schema 
 ## Answering
 
 Return the rows that answer the question, with `trade_id` on each, and one line of summary. If values come back `[redacted]` or masked, return them exactly as received and say so. If the result is empty, say it is empty; do not speculate why. If a tool call is refused, return the error text verbatim.
+
+Every value you return must come from a query you actually ran in this conversation. If you could not run one, say so; never invent rows.

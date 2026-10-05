@@ -1,0 +1,30 @@
+# The agent's own grants. New agents are granted nothing: until these exist the
+# agent cannot open a session on its MCP servers or call its model, and it
+# answers with no tools at all.
+#
+# Scoped to exactly the four servers and the one LLM provider it uses, rather
+# than every resource in the org. A person's call through the agent is also
+# evaluated as that person (rates-broker-no-refdata.yaml), so the agent never
+# reaches more than the person asking.
+
+name: policies/desk-assistant-mcp
+display_name: "Agent grant: desk-assistant — its four SQL servers"
+description: desk-assistant may open sessions and call tools on its four SQL servers, and no other MCP server.
+cedar_text: |
+  permit(
+    principal == Agent::"desk-assistant",
+    action in [
+      Action::"McpServer.initialize",
+      Action::"McpServer.ping",
+      Action::"McpServer.tools_list",
+      Action::"McpServerTool.call"
+    ],
+    resource
+  ) when {
+    resource in [
+      McpServer::"blotter-sql",
+      McpServer::"pricing-sql",
+      McpServer::"refdata-sql",
+      McpServer::"rollup-sql"
+    ]
+  };

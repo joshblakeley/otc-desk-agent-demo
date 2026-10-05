@@ -20,7 +20,31 @@ the AI gateway. Exposure is decided in three places:
 
 ## Layer 1: access policy (Cedar)
 
-`config/policies/rates-broker-no-refdata.yaml`:
+Two questions are asked of every tool call: may this **agent** call it, and may
+the **person** it is acting for?
+
+**The agent.** New agents are granted nothing. Until it has a grant, an agent
+cannot open a session on an MCP server or call a model, and answers with no
+tools at all. `config/policies/desk-assistant-mcp.yaml` grants exactly its four
+servers:
+
+```cedar
+permit(
+  principal == Agent::"desk-assistant",
+  action in [Action::"McpServer.initialize", Action::"McpServer.ping",
+             Action::"McpServer.tools_list", Action::"McpServerTool.call"],
+  resource
+) when {
+  resource in [McpServer::"blotter-sql", McpServer::"pricing-sql",
+               McpServer::"refdata-sql", McpServer::"rollup-sql"]
+};
+```
+
+and `desk-assistant-llm.yaml` grants one LLM provider. A managed ceiling stops
+any agent from minting credentials or administering OAuth, whatever it is granted.
+
+**The person.** When the agent calls a tool on someone's behalf, the call is also
+evaluated as that person. `config/policies/rates-broker-no-refdata.yaml`:
 
 ```cedar
 forbid(
@@ -39,10 +63,8 @@ forbid(
 - Evaluation is in the gateway, before the call reaches the MCP server. A refused
   call returns a permission error to the agent, and the prompt instructs it to
   report that verbatim.
-- New agents are granted nothing. Access for an agent acting autonomously, such
-  as a scheduled trigger with no person behind it, is written as an explicit
-  policy naming the agent as principal. A managed ceiling stops any agent from
-  minting credentials or administering OAuth, whatever it is granted.
+- The refusal names the deciding policy, for example `denied by policy
+  "policies/rates-broker-no-refdata"`, and the same appears in the audit log.
 
 ## Layer 2: MCP server guardrails
 
@@ -57,10 +79,15 @@ guardrails:
   blocked_patterns:         # regex, checked on every statement
     - '(?i)\b(DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE)\b'
     - '(?i)\b(INSERT|UPDATE|DELETE|MERGE|COPY)\b'
+    - '(?i)\bset_config\b'
 ```
 
 These apply to everyone. They narrow what a query may do; they are not the
-access boundary. That is layer 4.
+access boundary. That is layer 4. An example of why both matter: in testing, a
+`SELECT set_config('default_transaction_read_only', 'off', false)` passed the
+first patterns and switched off the login's read-only session default. The
+`set_config` pattern now blocks it, and had it not, the login's SELECT-only grants
+would still have refused any write.
 
 ## Layer 3: data policy
 

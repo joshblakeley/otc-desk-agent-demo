@@ -16,7 +16,7 @@ The resources this demo uses:
 | Resource | Here | File |
 |---|---|---|
 | MCP server (with data policy) | 4 SQL servers | `config/manifests/*.yaml` |
-| Access policy (Cedar) | 1 forbid | `config/policies/*.yaml` |
+| Access policy (Cedar) | the agent's two scoped grants, one forbid for the broker | `config/policies/*.yaml` |
 | Agent (with subagents) | desk-assistant | rendered from `config/prompts/` by `scripts/render-agent.sh` |
 | Secret | 4 database DSNs | built from `env/secrets.env` by `scripts/01-secret.sh` |
 | Budget | 1 daily limit | `scripts/06-budget.sh` |

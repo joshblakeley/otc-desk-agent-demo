@@ -41,7 +41,7 @@ and its logins have no grant on it either way.
 
 | Check | Decides | Defined in | Depends on who asks? |
 |---|---|---|---|
-| Access policy (Cedar) | whether this person may call this tool at all | `config/policies/` | yes |
+| Access policy (Cedar) | whether this agent, and this person, may call this tool at all | `config/policies/` | yes |
 | MCP server guardrails | what a query may do (rows, time, statement shape) | `config/manifests/` | no |
 | Data policy | which rows and fields come back | `config/manifests/blotter-sql.yaml` | yes |
 | Database grant | what exists for this login | `config/sql/03-roles.sql` | no |
@@ -80,7 +80,8 @@ make credit        # the credit question: allowed, then refused
 
 rpai stores credentials per organization, so the second person needs their own
 credentials file as well as their own config. `AS=broker` on any target selects
-it.
+it. Sign each identity in with `rpai auth login --no-browser` and open the URL in
+a private window, so an existing browser session cannot sign in the wrong person.
 
 `make diff` shows what applying the repo would change without applying it. Run
 `make` with no arguments for every target.

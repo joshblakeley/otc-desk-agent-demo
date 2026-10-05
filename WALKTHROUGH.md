@@ -38,7 +38,7 @@ side by side).
    |---|---|---|
    | Desks returned | RATES, FXMM, CREDIT, ENERGY | RATES only |
    | Client trader | `r.ashby@northbridge.example` | `[redacted]` |
-   | Counterparty LEI | `DEMO00NORTHBRIDGE001` | `****************R001` |
+   | Counterparty LEI | `DEMO00NORTHBRIDGE001` | `****************E001` |
 
    `make book` prints the unshaped truth straight from SQL, for comparison.
 
@@ -54,8 +54,10 @@ side by side).
 
    The desk head gets Northbridge Capital's limit headroom (750m limit, 612m
    used, review in 41 days). The broker is refused by access policy, and the
-   agent quotes the refusal. Show `config/policies/rates-broker-no-refdata.yaml`:
-   a five-line Cedar `forbid`.
+   agent quotes the refusal, which names the deciding policy. Show
+   `config/policies/rates-broker-no-refdata.yaml`: a five-line Cedar `forbid`.
+   Then `desk-assistant-mcp.yaml`: the agent itself is granted its four servers
+   and nothing else in the org.
 
 4. **Fails closed.** `make break-schema`, then ask the broker again (`make ask
    AS=broker Q="Show me today's largest Rates trade with the client trader"`). The

@@ -1,0 +1,12 @@
+# The agent's model grant: one LLM provider, nothing else. See
+# desk-assistant-mcp.yaml for why an agent needs its own grants.
+
+name: policies/desk-assistant-llm
+display_name: "Agent grant: desk-assistant — its LLM provider"
+description: desk-assistant may invoke the anthropic-api-key provider only.
+cedar_text: |
+  permit(
+    principal == Agent::"desk-assistant",
+    action == Action::"LLMProvider.invoke",
+    resource == LLMProvider::"anthropic-api-key"
+  );
