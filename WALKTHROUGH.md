@@ -4,7 +4,8 @@ About 45 minutes plus questions, in four parts. Parts 1 and 2 are live; parts 3
 and 4 walk through `docs/03-operations-and-integration.md`.
 
 Before you start: `make preflight`, `make up`, `make verify`, then run `make
-smoke` and `make credit` once so both identities are warm. Have three windows
+smoke` and `make credit` once so both identities are warm. Run `make drill` at
+least 15 minutes beforehand so there is a kill-switch firing to show. Have three windows
 open: this repo, a terminal, and the ADP console signed in as the desk head (and
 a second browser profile signed in as the broker if you want to show the console
 side by side).
@@ -74,8 +75,11 @@ side by side).
      `refdata-sql`, with the deciding policy named.
    - **Cost and usage**: spend for `desk-assistant`, by user, against its daily
      budget (`make spend`).
-   - **Kill switch**: show where it is engaged, and say what it does. Do not trip
-     it live.
+   - **Kill switch**: show the two policies in `config/killswitch/` and the
+     `policy-error-burst` firing from rehearsal (`make firings`): the window, the observed deny rate,
+     the statistic against its threshold, and `SHADOW`, so nothing was stopped.
+     Explain the ladder from shadow through warn to enforce. Do not trip it in
+     enforce mode live.
 
 ## Part 3: Resilience and operations (10 min)
 

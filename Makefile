@@ -17,7 +17,7 @@ help:
 
 # --- provision ---------------------------------------------------------------
 
-up: secret db mcp policy agent budget ## Build everything (safe to re-run)
+up: secret db mcp policy agent budget killswitch ## Build everything (safe to re-run)
 	@echo "✓ up — next: make verify, then make smoke"
 
 preflight: ## Check identities, Postgres and the org before demo day
@@ -40,6 +40,9 @@ agent: mcp ## Reconcile the desk assistant and its two specialists
 
 budget: agent ## Set a daily spend limit on the agent
 	@bash scripts/06-budget.sh
+
+killswitch: agent ## Reconcile the kill-switch policy (KILLSWITCH_MODE=shadow|warn|enforce)
+	@bash scripts/07-killswitch.sh
 
 diff: ## Show what applying the repo would change, without applying it
 	@. scripts/_lib.sh; require_token; R=$$(mktemp -d); trap 'rm -rf $$R' EXIT; \
@@ -112,6 +115,19 @@ spend: ## Spend so far against the limit
 	adp_rpc redpanda.api.adp.v1alpha1.BudgetService/GetBudget "$$(jq -nc --arg n "$$BUDGET_NAME" '{name:$$n}')" \
 	  | jq -r '.budget | "limit: $$\(.limitMicrocents|tonumber/100000000)  spent: $$\(((.currentSpendMicrocents//"0")|tonumber)/100000000)"'
 
+firings: ## Kill-switch policy firings for this agent
+	@. scripts/_lib.sh; require_token; \
+	adp_rpc redpanda.api.adp.v1alpha1.KillSwitchPolicyService/ListKillSwitchFirings '{"pageSize":50}' \
+	  | jq -r --arg a "agents/$$AGENT_NAME" '.killSwitchFirings[]? | select(.agentName == $$a) | [.windowStart, (.policyName | split("/") | last), .detector, "rate=\(.observedRate)", "stat=\(.statistic | . * 1000 | round / 1000)", "threshold=\(.threshold)", (.mode | sub("KILL_SWITCH_POLICY_MODE_"; "")), (.outcome // "-")] | @tsv' \
+	  | column -t -s $$'\t'
+
+kill-status: ## Is the agent's kill switch engaged?
+	@. scripts/_lib.sh; require_token; \
+	adp_rpc redpanda.api.adp.v1alpha1.KillSwitchService/GetKillSwitch "$$(jq -nc --arg a "agents/$$AGENT_NAME" '{agent:$$a}')" | jq '.killSwitch | {enabled: (.enabled // false), reason, enabledBy, enabledAt}'
+
+drill: ## Provoke a deny burst through the agent and wait for a kill-switch firing
+	@bash scripts/drill.sh
+
 stop-agent: ## Pause the agent
 	@. scripts/_lib.sh; rpai agent stop "$$AGENT_NAME"
 
@@ -134,5 +150,6 @@ fix-schema: ## Put the column back
 db-drop: ## Drop the demo database
 	@. scripts/_lib.sh; pg -c "DROP DATABASE IF EXISTS \"$$PG_DATABASE\" WITH (FORCE);"; echo "✓ dropped $$PG_DATABASE"
 
-.PHONY: help up preflight secret db mcp policy agent budget diff down verify book \
-        ask smoke credit status spend stop-agent start-agent break-schema fix-schema db-drop
+.PHONY: help up preflight secret db mcp policy agent budget killswitch diff down verify book \
+        ask smoke credit status spend firings kill-status drill stop-agent start-agent \
+        break-schema fix-schema db-drop

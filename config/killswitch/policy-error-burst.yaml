@@ -1,0 +1,22 @@
+# Kill-switch policy: flag the agent when its data policies start failing to
+# apply.
+#
+# What counts: a response withheld because a data-policy rule could not be
+# applied — most often a schema change that breaks a mask (a masked column
+# renamed, with absence_safe: false). The data is still protected, because the
+# response is withheld, but the agent has stopped working for the people the
+# policy covers, and someone needs to know. `make drill` provokes exactly this.
+#
+# This signal can record and warn but never engages the kill switch: an
+# evaluation error is a fault in configuration, not evidence about the agent,
+# so it caps at WARN. Same 5-minute windows and BURST detector as
+# deny-rate-burst.yaml.
+
+name: policy-error-burst
+display_name: Data-policy evaluation errors
+spec:
+  signal: KILL_SWITCH_POLICY_SIGNAL_EVALUATION_ERROR_RATE
+  burst:
+    threshold: 0.2
+    confidence: BURST_CONFIDENCE_95
+  mode: KILL_SWITCH_POLICY_MODE_SHADOW

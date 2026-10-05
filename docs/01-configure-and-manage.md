@@ -20,10 +20,10 @@ The resources this demo uses:
 | Agent (with subagents) | desk-assistant | rendered from `config/prompts/` by `scripts/render-agent.sh` |
 | Secret | 4 database DSNs | built from `env/secrets.env` by `scripts/01-secret.sh` |
 | Budget | 1 daily limit | `scripts/06-budget.sh` |
+| Kill-switch policy | 2: data-policy deny rate, evaluation error rate | `config/killswitch/*.yaml`, applied by `scripts/07-killswitch.sh` |
 | LLM provider | pre-existing | referenced by name in `env/production.env` |
 
-Others available: guardrails, kill switches and kill-switch policies, OAuth
-providers and clients, triggers.
+Others available: guardrails, OAuth providers and clients, triggers.
 
 ## Manifests
 

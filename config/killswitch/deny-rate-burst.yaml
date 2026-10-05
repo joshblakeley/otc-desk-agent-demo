@@ -1,0 +1,34 @@
+# Kill-switch policy: trip the agent's kill switch automatically when its
+# data-policy deny rate spikes.
+#
+# What counts as a deny: a request refused for asking outside a person's
+# bounds — a request clamp violated, such as the broker asking for more than 25
+# rows. A healthy assistant rarely does this; a burst means something is
+# pushing at the edges, such as a manipulated prompt, and the right response is
+# to contain the agent first and investigate second. (A response withheld
+# because a rule could not be applied is an evaluation error instead: see
+# policy-error-burst.yaml.)
+#
+# How it decides: calls are counted in 5-minute windows (fixed fleet-wide;
+# windows with fewer than 10 calls are skipped). BURST fires when the
+# lower bound of the window's deny rate, at the stated confidence, exceeds the
+# threshold — so 3 denials in 5 calls stays quiet, 12 in 12 fires.
+#
+# Mode, the rollout ladder:
+#   SHADOW   evaluate and record a firing, nothing else (start here)
+#   WARN     also notify
+#   ENFORCE  also engage the agent's kill switch: MCP, LLM and agent-to-agent
+#            traffic for this agent stops until a person releases it
+# KILLSWITCH_MODE in env/<env>.env overrides the mode below at apply time.
+#
+# There is no `rpai apply` for this resource yet; scripts/07-killswitch.sh
+# reconciles it through the API.
+
+name: deny-rate-burst
+display_name: Data-policy deny spike
+spec:
+  signal: KILL_SWITCH_POLICY_SIGNAL_DATAPOLICY_DENY_RATE
+  burst:
+    threshold: 0.2
+    confidence: BURST_CONFIDENCE_95
+  mode: KILL_SWITCH_POLICY_MODE_SHADOW

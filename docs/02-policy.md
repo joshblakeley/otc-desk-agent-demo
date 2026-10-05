@@ -136,9 +136,45 @@ this boundary; they do not replace it.
 ## Containment and cost
 
 - **Kill switch.** Each agent has one. Engaging it cuts the agent's MCP, LLM and
-  agent-to-agent traffic immediately. Kill-switch policies can trip it
-  automatically on a guardrail block rate, a data-policy deny rate or an
-  evaluation error rate, in shadow, warn or enforce mode.
+  agent-to-agent traffic immediately, until a person releases it (`make
+  kill-status`).
+- **Kill-switch policies.** Watch a signal and trip or flag automatically.
+  `config/killswitch/deny-rate-burst.yaml`:
+
+  ```yaml
+  name: deny-rate-burst
+  spec:
+    signal: KILL_SWITCH_POLICY_SIGNAL_DATAPOLICY_DENY_RATE
+    burst:
+      threshold: 0.2
+      confidence: BURST_CONFIDENCE_95
+    mode: KILL_SWITCH_POLICY_MODE_SHADOW
+  ```
+
+  The two policies here watch different things:
+
+  | Policy | Signal | Counts | Ceiling |
+  |---|---|---|---|
+  | `deny-rate-burst` | data-policy deny rate | requests refused for asking outside a person's bounds (a clamp violated) | enforce |
+  | `policy-error-burst` | evaluation error rate | responses withheld because a rule could not be applied, e.g. a renamed masked column | warn |
+
+  A burst of denials suggests something pushing at the edges, such as a
+  manipulated prompt, so contain first and investigate second. A burst of
+  evaluation errors means the data is still protected but the agent has stopped
+  working for the people a policy covers; that is a configuration fault, so the
+  signal can flag but never engage the kill switch.
+  - **Signals:** data-policy deny rate, guardrail block rate, or evaluation
+    error rate.
+  - **Detectors:** BURST fires when the lower confidence bound of a 5-minute
+    window's rate exceeds the threshold, so 3 denials in 5 calls stays quiet
+    and 12 in 12 fires. DRIFT accumulates evidence across windows to catch a
+    slow creep. Windows with fewer than 10 calls are skipped.
+  - **Modes, as a rollout ladder:** SHADOW records a firing and nothing else;
+    WARN also notifies; ENFORCE also engages the kill switch. Start in shadow,
+    review the firings (`make firings`), then promote with
+    `KILLSWITCH_MODE=enforce make killswitch`.
+  - `make drill` breaks the masked column, sends a burst of broker questions
+    through the agent, and waits for `policy-error-burst` to record a firing.
 - **Budgets.** A daily, weekly or monthly spend limit per agent. Once it is
   reached, LLM calls are refused until the period resets (`scripts/06-budget.sh`,
   `make spend`).
