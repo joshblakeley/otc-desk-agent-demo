@@ -1,8 +1,8 @@
 # Kill-switch policy: flag the agent when its data policies start failing to
 # apply.
 #
-# What counts: a response withheld because a data-policy rule could not be
-# applied — most often a schema change that breaks a mask (a masked column
+# What counts: a response withheld because a data-policy rule cannot be
+# applied, most often a schema change that breaks a mask (a masked column
 # renamed, with absence_safe: false). The data is still protected, because the
 # response is withheld, but the agent has stopped working for the people the
 # policy covers, and someone needs to know. `make drill` provokes exactly this.

@@ -1,4 +1,4 @@
--- Synthetic counterparties. Names are invented; LEIs start with DEMO so they
+-- Synthetic counterparties. Names are invented. LEIs start with DEMO so they
 -- cannot collide with a real Legal Entity Identifier.
 
 BEGIN;

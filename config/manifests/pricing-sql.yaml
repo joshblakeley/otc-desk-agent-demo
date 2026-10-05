@@ -4,7 +4,7 @@
 # `rpai mcp apply` creates it if absent, otherwise updates only the fields that
 # differ from live. `rpai mcp diff` shows the change without applying it.
 #
-# Guardrails here shape what a query may do. They are not the access boundary:
+# Guardrails here shape what a query can do. They are not the access boundary:
 # readonly only disables the Execute tool, and allowed_schemas is advisory. The
 # boundary is the database login behind the DSN (config/sql/03-roles.sql),
 # which `make verify` tests. blocked_patterns, max_rows_* and query_timeout
@@ -24,11 +24,11 @@ managed:
   config:
     '@type': type.googleapis.com/redpanda.mcps.sql.v1.SQLMCPConfig
     driver: postgres
-    # An interpolation expression, not a bare secret name — a bare name is
+    # An interpolation expression, not a bare secret name. A bare name is
     # parsed as a connection string and every call fails with an opaque 500.
     dsn: ${secrets.OTC_DEMO_PG_PRICING_DSN}
     # Rows as objects keyed by column name. Data-policy rules address fields by
-    # name; with the positional default they can only reach the whole row.
+    # name. With the positional default, they can only reach the whole row.
     row_format: ROW_FORMAT_OBJECT
     connection_pool:
       max_open_conns: 5

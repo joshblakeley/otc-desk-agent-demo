@@ -11,7 +11,7 @@ require_token
 LIMIT_MC=$(( BUDGET_LIMIT_USD * 100000000 )); WARN_MC=$(( BUDGET_WARN_USD * 100000000 ))
 
 # filter_agent_name takes the resource name ("agents/<name>"), not the bare
-# name — a bare name creates a budget that matches nothing. It is immutable, so
+# name. A bare name creates a budget that matches nothing. It is immutable, so
 # a changed budget is deleted and recreated.
 BODY="$(jq -nc --arg name "$BUDGET_NAME" --arg dn "Desk assistant daily limit" \
   --arg agent "agents/$AGENT_NAME" --argjson limit "$LIMIT_MC" --argjson warn "$WARN_MC" \

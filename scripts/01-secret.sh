@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create or update the four Postgres DSN secrets — one per SQL MCP server, each
+# Create or update the four Postgres DSN secrets, one per SQL MCP server, each
 # carrying a different least-privilege login.
 #
 # DSNs are assembled here from PG_HOST/PG_PORT/PG_DATABASE and the passwords in

@@ -23,8 +23,8 @@ rpai mcp diff -f "$RENDERED" || true
 log "applying"
 rpai mcp apply -f "$RENDERED"
 
-# A server that fell back to positional rows would turn every per-field rule
-# into a no-op with no error anywhere. Check the setting stuck.
+# If a server falls back to positional rows, every per-field rule becomes a
+# no-op with no error anywhere. Check that the setting stuck.
 for name in "$MCP_BLOTTER" "$MCP_PRICING" "$MCP_REFDATA" "$MCP_ROLLUP"; do
   fmt="$(rpai mcp get "$name" -o json 2>/dev/null | jq -r '.managed.config.row_format // "<absent>"')"
   [ "$fmt" = "ROW_FORMAT_OBJECT" ] || die "$name has row_format '$fmt'; per-field data policies would silently do nothing."

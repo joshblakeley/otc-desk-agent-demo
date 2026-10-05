@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Remove everything this demo created in the ADP org. Leaves Postgres alone;
+# Remove everything this demo created in the ADP org. Postgres stays as it is.
 # `make db-drop` handles that.
 
 . "$(dirname "$0")/_lib.sh"

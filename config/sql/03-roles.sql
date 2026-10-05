@@ -1,6 +1,6 @@
 -- Four login roles, one per SQL MCP server. This file is the hard boundary.
 --
--- The MCP server's own settings narrow what a query may do, but they are not a
+-- The MCP server's own settings narrow what a query can do, but they are not a
 -- security boundary on their own: `readonly` only disables the Execute tool, and
 -- the Query tool will run whatever SQL it is given. What a login can touch is
 -- decided here, by Postgres. `make verify` checks every combination.

@@ -36,7 +36,7 @@ die()  { printf "%s[%s ✗]%s %s\n" "$c_red" "$ENV" "$c_reset" "$*" >&2; exit 1;
 
 # Identity is chosen by which rpai config AND credentials file are in use.
 # rpai keys stored credentials by organization, so two people in one org need
-# two credentials files — a second config alone silently reuses the first
+# two credentials files. A second configuration alone silently reuses the first
 # person's token. AS=<name> selects ~/.rpai/<name> and ~/.rpai/<name>.credentials.
 # Sign a second identity in with:
 #   RPAI_CONFIG=~/.rpai/broker RPAI_CREDENTIALS=~/.rpai/broker.credentials rpai auth login
@@ -49,9 +49,9 @@ rpai_identity() {
 }
 
 # `rpai auth token` exits successfully and prints an EXPIRED token once the
-# refresh has lapsed — the warning only goes to stderr. Checking the output is
-# non-empty is therefore not enough: accept it and every later call fails with
-# an unexplained 401. Check the expiry instead.
+# refresh has lapsed. The warning only goes to stderr. A check that the output is
+# non-empty is not enough. If you accept it, every later call fails with an
+# unexplained 401. Check the expiry instead.
 require_token() {
   local login_hint="rpai auth login"
   [ -n "${AS:-}" ] && login_hint="RPAI_CONFIG=$RPAI_CONFIG RPAI_CREDENTIALS=$RPAI_CREDENTIALS rpai auth login"
@@ -82,9 +82,9 @@ require_token() {
 }
 
 # Print the identity the current token actually carries. Identity comes from the
-# token, not from a header — identity headers are stripped from outside traffic —
-# so this is the only honest answer to "who is this running as". Worth showing
-# rather than trusting which profile you think you picked.
+# token, not from a header. The gateway strips identity headers from outside traffic,
+# so the token is the only honest answer to "who is this running as". Show it,
+# rather than trust the profile that you think you picked.
 token_identity() {
   local payload
   payload="$(printf '%s' "${TOKEN:-}" | cut -d. -f2 | tr '_-' '/+')"
@@ -117,7 +117,7 @@ _curl() {
   esac
 }
 
-# Connect-RPC against the ADP API — the same surface the Cloud UI uses.
+# Connect-RPC against the ADP API: the same surface that the Cloud UI uses.
 adp_rpc() { _curl POST "$ADP_API_URL/$1" "$2"; }
 
 dp_get()  { _curl GET    "$DATAPLANE_API$1"; }
@@ -128,8 +128,8 @@ dp_del()  { _curl DELETE "$DATAPLANE_API$1"; }
 # --- postgres -------------------------------------------------------------
 
 # psql as the owning role. PG_ADMIN_DSN is the owner DSN
-# from env/secrets.env; the four least-privilege roles are created by
-# config/sql/03-roles.sql and only ever used by the MCP servers.
+# from env/secrets.env. config/sql/03-roles.sql creates the four least-privilege
+# logins, and only the MCP servers use them.
 pg() {
   command -v psql >/dev/null || die "psql not found (brew install libpq or postgresql)"
   psql "$PG_ADMIN_DSN" -v ON_ERROR_STOP=1 -q "$@"

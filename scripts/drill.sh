@@ -5,8 +5,8 @@
 # Breaks the masked column (so every broker query is withheld by data policy),
 # sends DRILL_N broker questions concurrently, restores the column, then polls
 # for a firing. Windows are 5 minutes and need at least 10 calls, so expect the
-# firing a few minutes after the burst. In SHADOW mode nothing is stopped; in
-# ENFORCE mode the agent's kill switch engages — release it with
+# firing a few minutes after the burst. In SHADOW mode, nothing stops. In
+# ENFORCE mode, the agent's kill switch engages. Release it with
 # `make release`.
 
 . "$(dirname "$0")/_lib.sh"

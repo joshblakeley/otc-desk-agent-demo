@@ -1,67 +1,89 @@
 # otc-desk-agent-demo
 
-A worked example of governing AI agents on Redpanda's Agentic Data Plane (ADP),
-using a wholesale broker's trading desks as the domain.
+This repository shows how you control what an AI agent can see and do on the
+Redpanda Agentic Data Plane (ADP). Two people ask one agent the same question
+and get different answers. The agent, its prompt and its tools are the same for
+both people. Only policy differs, and all of that policy is in this repository.
 
-One desk assistant answers questions about the trade book, prices, desk volumes
-and counterparties. Two people ask it the same question and get different
-answers: a desk head sees every desk, while a Rates broker sees only Rates trades
-with client details masked, and is refused counterparty credit data outright.
-Nothing about the agent, its prompt or its tools differs between them. Only
-policy does, and all of that policy lives in this repo.
+The domain is the trading desks of a wholesale broker. A desk head sees the
+largest trade on every desk. A Rates broker sees Rates trades only, with the
+client trader redacted and the counterparty identifier masked. The access policy
+refuses the broker all counterparty credit data.
 
-`make up` builds everything. All data is synthetic: the firm, counterparties,
-trades and prices are invented, and every LEI starts with `DEMO`.
+`make up` builds everything. All data is synthetic. The firm, the counterparties,
+the trades and the prices are invented. Every Legal Entity Identifier (LEI)
+starts with `DEMO`.
 
-| Read | For |
+| Document | Contents |
 |---|---|
-| [WALKTHROUGH.md](WALKTHROUGH.md) | the session run of show |
-| [docs/01-configure-and-manage.md](docs/01-configure-and-manage.md) | how the plane is configured and administered |
-| [docs/02-policy.md](docs/02-policy.md) | the policy worked example, layer by layer |
-| [docs/03-operations-and-integration.md](docs/03-operations-and-integration.md) | operations, identity and data integration |
+| [WALKTHROUGH.md](WALKTHROUGH.md) | The run of show for a live session |
+| [docs/2026-10-05-configure-and-manage.md](docs/2026-10-05-configure-and-manage.md) | How you configure and administer the plane |
+| [docs/2026-10-05-policy-worked-example.md](docs/2026-10-05-policy-worked-example.md) | The four controls on a tool call, with the configuration for each |
+| [docs/2026-10-05-operations-and-integration.md](docs/2026-10-05-operations-and-integration.md) | Behaviour under failure, identity, and connections to source systems |
 
-## Architecture
+## One entry point, two subagents, four databases
 
 ```
-person (desk head | Rates broker)
-   │  signs in; identity travels with every call the agent makes for them
-   ▼
-desk-assistant ─── rollup-sql ──── desk.daily_volumes        aggregates, no counterparties
-   │           └── refdata-sql ─── refdata.counterparties    credit limits, KYC
-   ├─ trade-analyst ─── blotter-sql ── trades.blotter         authoritative trade store
-   └─ pricing-analyst ─ pricing-sql ── market.latest_prices   indicative prices
+person (desk head or Rates broker)
+  │ signs in. The identity goes with every call that the agent makes.
+  ▼
+desk-assistant ──▶ rollup-sql ──▶ desk.daily_volumes
+  │            │                    (aggregates, no counterparty columns)
+  │            └─▶ refdata-sql ─▶ refdata.counterparties
+  │                                 (credit limits, KYC status)
+  ├─▶ trade-analyst ──▶ blotter-sql ──▶ trades.blotter
+  │   (subagent)                         (the authoritative trade store)
+  └─▶ pricing-analyst ─▶ pricing-sql ──▶ market.latest_prices
+      (subagent)                         (indicative prices)
 ```
 
-The desk assistant is the only entry point; the specialists cannot be addressed
-directly. Each MCP server logs into Postgres as its own least-privilege login, so
-the orchestrator genuinely cannot read the blotter: it is not among its tools,
-and its logins have no grant on it either way.
+A subagent is an agent that only its parent agent can call. Each MCP server
+connects to Postgres with its own database login. The desk assistant cannot read
+the blotter, for two reasons. The blotter server is not in its tool list. Its
+database logins have no grant on the blotter.
 
-## Four checks on every tool call
+## Four controls on every tool call
 
-| Check | Decides | Defined in | Depends on who asks? |
+```
+tool call from desk-assistant, on behalf of a person
+  │
+  ▼  AI gateway
+  access policy ──────── can this agent and this person call this tool?
+  data policy (request)  clamp the arguments for this person
+  guardrails ─────────── is this query inside the server limits?
+  │
+  ▼  SQL MCP server ──▶ Postgres
+  │                     database grant: what this login can read
+  ▼
+  data policy (response) which rows and fields go back to this person?
+  │
+  ▼
+response to the agent
+```
+
+| Control | Decides | Configuration | Changes with the person? |
 |---|---|---|---|
-| Access policy (Cedar) | whether this agent, and this person, may call this tool at all | `config/policies/` | yes |
-| MCP server guardrails | what a query may do (rows, time, statement shape) | `config/manifests/` | no |
-| Data policy | which rows and fields come back | `config/manifests/blotter-sql.yaml` | yes |
-| Database grant | what exists for this login | `config/sql/03-roles.sql` | no |
+| Access policy (Cedar) | Whether this agent and this person can call the tool | `config/policies/` | Yes |
+| MCP server guardrails | What a query can do: rows, time, statement shape | `config/manifests/` | No |
+| Data policy | Which rows and fields go back | `config/manifests/blotter-sql.yaml` | Yes |
+| Database grant | What the login can read | `config/sql/03-roles.sql` | No |
 
-The database grant is the hard boundary; `make verify` proves it. The other three
-sit in front of it in the gateway, which enforces them on every call whether it
-comes from this agent, another agent or a person with an MCP client.
+The database grant is the hard boundary. `make verify` proves it. The AI gateway
+applies the other three controls to every call. It applies them to this agent,
+to other agents, and to people who use an MCP client directly.
 
-## Requirements
+## Tools and accounts that the demo needs
 
-- `rpai` 0.2.x or newer (`brew install redpanda-data/tap/rpai`), plus `jq`,
-  `curl`, `psql`, `python3` with PyYAML, `bash` and GNU `make`
-- An ADP environment with an LLM provider configured
-- Postgres reachable from the AI gateway over the public internet with TLS. The
-  gateway refuses to dial private addresses, so tunnels and VPC-internal
-  databases do not work.
-- Two user accounts in the org. Service accounts do not work for this, because
-  the gateway treats them as infrastructure rather than people.
+- `rpai` 0.2.x or newer (`brew install redpanda-data/tap/rpai`).
+- `jq`, `curl`, `psql`, `python3` with PyYAML, `bash` and GNU `make`.
+- An ADP environment with an LLM provider.
+- A Postgres database that the AI gateway can reach over the public internet
+  with TLS. The gateway refuses private addresses, so a tunnel or a database
+  inside a private network does not work.
+- Two user accounts in the organization. Service accounts do not work, because
+  the gateway treats a service account as infrastructure, not as a person.
 
-## Setup
+## Build and run the demo
 
 ```bash
 cp env/production.env.example env/production.env && $EDITOR env/production.env
@@ -78,21 +100,25 @@ make smoke         # the showcase question as both people
 make credit        # the credit question: allowed, then refused
 ```
 
-rpai stores credentials per organization, so the second person needs their own
-credentials file as well as their own config. `AS=broker` on any target selects
-it. Sign each identity in with `rpai auth login --no-browser` and open the URL in
-a private window, so an existing browser session cannot sign in the wrong person.
+`rpai` stores one set of credentials for each organization. The second person
+needs a separate credentials file and a separate configuration file. Add
+`AS=broker` to any target to run it as the broker.
 
-`make diff` shows what applying the repo would change without applying it. Run
-`make` with no arguments for every target.
+Sign in each person with `rpai auth login --no-browser`. Open the printed URL in
+a private browser window. Otherwise, an existing browser session can sign in the
+wrong person.
 
-## Known limits
+`make diff` shows what `make up` will change, and changes nothing. Run `make`
+with no arguments to list every target.
 
-Stated plainly so nobody has to discover them:
+## Limits that apply today
 
-- Data policies target named users. Group targeting is not supported in this
-  version, and a group-targeted policy refuses every call on its server.
-- Budgets are per agent. Spend can be reported per user, but not capped per user.
-- On SQL MCP servers, `readonly` disables the Execute tool only and
-  `allowed_schemas` is advisory. Use a read-only database login, as here.
-- Guardrails (PII, prompt attack) apply to LLM traffic, not to MCP tool traffic.
+- Data policies target named users. Group targeting is not available. A data
+  policy that targets a group refuses every call on its server.
+- Budgets cap spend for each agent. Reports show spend for each person, but no
+  budget caps it.
+- On SQL MCP servers, `readonly` disables the Execute tool only, and the server
+  does not enforce `allowed_schemas`. Use a read-only database login, as this
+  repository does.
+- Guardrails for personal data and prompt attacks apply to LLM traffic. They do
+  not apply to MCP tool traffic.
