@@ -60,12 +60,16 @@ integration from
 6. Open `config/policies/rates-broker-no-refdata.yaml`, a five-line Cedar
    `forbid`. Then open `desk-assistant-mcp.yaml`, which grants the agent its
    four servers and no others.
-7. Run `make break-schema`, then ask as the broker:
+7. Make the on-behalf-of (OBO) point. The agent grant permits `refdata-sql`,
+   but the call for the broker failed. So the gateway checked the call as the
+   broker, not as the agent. The error names the broker as `User:<email>`,
+   not the agent. An agent never reaches more than the person who asks.
+8. Run `make break-schema`, then ask as the broker:
    `make ask AS=broker Q="Show me today's largest Rates trade with the client trader"`.
-8. Show that the gateway withholds the response, because the masked column is
+9. Show that the gateway withholds the response, because the masked column is
    missing. The email does not pass through under the new column name.
-9. Run `make fix-schema`.
-10. Run `make verify`. Each login reads its own schema, gets "permission denied"
+10. Run `make fix-schema`.
+11. Run `make verify`. Each login reads its own schema, gets "permission denied"
     on the others, and cannot write.
 
 ## Show the evidence in the console (5 minutes)
