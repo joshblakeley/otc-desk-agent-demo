@@ -1,0 +1,24 @@
+# Access policy (Cedar). Decides which tools a person may call at all, before
+# any data policy shapes what comes back.
+#
+# When an agent calls a tool on someone's behalf, the gateway evaluates the
+# call as that person. So this one statement stops the Rates broker reaching
+# counterparty credit data whichever agent or tool path they come through,
+# with no change to the agent.
+#
+# A forbid, not a missing permit: org roles already grant broad access, so
+# leaving a permission out removes nothing, and forbid always wins over permit.
+# initialize and tools_list stay allowed, so the agent's session starts and
+# only the call itself is refused — and it is refused visibly.
+#
+# __BROKER_EMAIL__ is substituted at apply time from env/<env>.env.
+
+name: policies/rates-broker-no-refdata
+display_name: Rates broker — no counterparty credit data
+description: Information barrier. The Rates broker may not call tools on the counterparty reference-data server, through any agent.
+cedar_text: |
+  forbid(
+    principal == User::"__BROKER_EMAIL__",
+    action == Action::"McpServerTool.call",
+    resource in McpServer::"refdata-sql"
+  );

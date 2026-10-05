@@ -1,0 +1,87 @@
+# Trade blotter (authoritative trade store), for trade-analyst
+#
+# A manifest is the resource as `rpai mcp get blotter-sql -o yaml` prints it.
+# `rpai mcp apply` creates it if absent, otherwise updates only the fields that
+# differ from live. `rpai mcp diff` shows the change without applying it.
+#
+# Guardrails here shape what a query may do. They are not the access boundary:
+# readonly only disables the Execute tool, and allowed_schemas is advisory. The
+# boundary is the database login behind the DSN (config/sql/03-roles.sql),
+# which `make verify` tests. blocked_patterns, max_rows_* and query_timeout
+# are enforced, so they stand as defence in depth.
+
+'@type': type.googleapis.com/redpanda.api.adp.v1alpha1.MCPServer
+name: blotter-sql
+type: MCP_SERVER_TYPE_MANAGED
+enabled: true
+description: Trade blotter (authoritative trade store), for trade-analyst
+# Plain keyed rows. The compact TOON encoding makes the model align values to a
+# header itself, and it misquotes columns. Written explicitly because apply
+# leaves fields a manifest does not name untouched.
+response_format: MCP_RESPONSE_FORMAT_UNSPECIFIED
+
+managed:
+  config:
+    '@type': type.googleapis.com/redpanda.mcps.sql.v1.SQLMCPConfig
+    driver: postgres
+    # An interpolation expression, not a bare secret name — a bare name is
+    # parsed as a connection string and every call fails with an opaque 500.
+    dsn: ${secrets.OTC_DEMO_PG_BLOTTER_DSN}
+    # Rows as objects keyed by column name. Data-policy rules address fields by
+    # name; with the positional default they can only reach the whole row.
+    row_format: ROW_FORMAT_OBJECT
+    connection_pool:
+      max_open_conns: 5
+      max_idle_conns: 2
+    guardrails:
+      readonly: true
+      max_rows_default: 60
+      max_rows_limit: 500
+      query_timeout: 20s
+      allowed_schemas: [trades]
+      blocked_patterns:
+        - '(?i)\b(DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE)\b'
+        - '(?i)\b(INSERT|UPDATE|DELETE|MERGE|COPY)\b'
+        - '(?i)\bSET\s+(SESSION|ROLE|default_transaction)'
+        - '(?i)\bpg_(read|ls|stat_file|sleep)'
+
+# What the Rates broker may see. Policies target one named person: group
+# targeting is unsupported in this version and refuses every call on the whole
+# server, not only the group's.
+#
+# The same agent, prompt and tools serve both people. Only this block differs.
+data_policies:
+  - display_name: Rates desk — information barrier
+    tools: [query]
+    principals:
+      - User:__BROKER_EMAIL__
+    shaping:
+      request:
+        clamps:
+          - json_path: $.max_rows
+            maximum: 25
+      response:
+        # Values arrive as strings, so compare text. A record without the field
+        # is dropped, so a query that leaves out `desk` returns nothing for this
+        # user rather than everything.
+        row_filters:
+          - path: $.records
+            expression: '@.desk == "RATES"'
+        field_actions:
+          default_drop: false
+          rules:
+            # absence_safe false: if the column is renamed the call fails
+            # rather than passing the value through under a new name.
+            - selector:
+                json_path: $.records.client_trader_email
+              mask:
+                redact:
+                  placeholder: '[redacted]'
+              absence_safe: false
+            - selector:
+                json_path: $.records.counterparty_lei
+              mask:
+                partial:
+                  keep_last: 4
+                  mask_char: '*'
+              absence_safe: true

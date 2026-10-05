@@ -1,0 +1,46 @@
+# Counterparty reference data and credit limits, for desk-assistant
+#
+# A manifest is the resource as `rpai mcp get refdata-sql -o yaml` prints it.
+# `rpai mcp apply` creates it if absent, otherwise updates only the fields that
+# differ from live. `rpai mcp diff` shows the change without applying it.
+#
+# Guardrails here shape what a query may do. They are not the access boundary:
+# readonly only disables the Execute tool, and allowed_schemas is advisory. The
+# boundary is the database login behind the DSN (config/sql/03-roles.sql),
+# which `make verify` tests. blocked_patterns, max_rows_* and query_timeout
+# are enforced, so they stand as defence in depth.
+
+'@type': type.googleapis.com/redpanda.api.adp.v1alpha1.MCPServer
+name: refdata-sql
+type: MCP_SERVER_TYPE_MANAGED
+enabled: true
+description: Counterparty reference data and credit limits, for desk-assistant
+# Plain keyed rows. The compact TOON encoding makes the model align values to a
+# header itself, and it misquotes columns. Written explicitly because apply
+# leaves fields a manifest does not name untouched.
+response_format: MCP_RESPONSE_FORMAT_UNSPECIFIED
+
+managed:
+  config:
+    '@type': type.googleapis.com/redpanda.mcps.sql.v1.SQLMCPConfig
+    driver: postgres
+    # An interpolation expression, not a bare secret name — a bare name is
+    # parsed as a connection string and every call fails with an opaque 500.
+    dsn: ${secrets.OTC_DEMO_PG_REFDATA_DSN}
+    # Rows as objects keyed by column name. Data-policy rules address fields by
+    # name; with the positional default they can only reach the whole row.
+    row_format: ROW_FORMAT_OBJECT
+    connection_pool:
+      max_open_conns: 5
+      max_idle_conns: 2
+    guardrails:
+      readonly: true
+      max_rows_default: 30
+      max_rows_limit: 500
+      query_timeout: 20s
+      allowed_schemas: [refdata]
+      blocked_patterns:
+        - '(?i)\b(DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE)\b'
+        - '(?i)\b(INSERT|UPDATE|DELETE|MERGE|COPY)\b'
+        - '(?i)\bSET\s+(SESSION|ROLE|default_transaction)'
+        - '(?i)\bpg_(read|ls|stat_file|sleep)'
